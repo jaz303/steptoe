@@ -9,10 +9,11 @@
   * unary operators
   * arrays
   * dictionaries
-  * while loop (inc. break)
+  * <del>while loop</del>
+  * break
   * foreach / for loop
-  * if/else statement
-  * logical operators
+  * <del>if/else statement</del>
+  * <del>logical operators</del>
   * native functions
   * Closures, maybe
   * Parser

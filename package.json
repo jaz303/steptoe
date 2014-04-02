@@ -24,5 +24,8 @@
   "homepage": "https://github.com/jaz303/steptoe",
   "dependencies": {
     "lexical-env": "0.0.1"
+  },
+  "devDependencies": {
+    "pegjs": "~0.8.0"
   }
 }

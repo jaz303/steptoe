@@ -21,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/jaz303/steptoe/issues"
   },
-  "homepage": "https://github.com/jaz303/steptoe"
+  "homepage": "https://github.com/jaz303/steptoe",
+  "dependencies": {
+    "lexical-env": "0.0.1"
+  }
 }

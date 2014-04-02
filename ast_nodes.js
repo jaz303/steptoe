@@ -8,6 +8,8 @@ exports.LogicalAndOp    = LogicalAndOp;
 exports.LogicalOrOp     = LogicalOrOp;
 exports.If              = If;
 
+var E = require('lexical-env');
+
 var DEBUG = false;
 
 var nextid = 1;
@@ -65,7 +67,7 @@ Assign.prototype.step = function(state, env, ctx) {
     if (state.state === 0) {
         ctx.evaluate(this.right);
     } else if (state.state === 1) {
-        env[this.left.name] = ctx.retVal;
+        E.set(env, this.left.name, ctx.retVal);
     } else {
         ctx.ret(null);
     }
@@ -270,5 +272,5 @@ Ident.prototype.newFrame = function() {
 }
 
 Ident.prototype.step = function(state, env, ctx) {
-    ctx.ret(env[this.name]);
+    ctx.ret(E.get(env, this.name));
 }

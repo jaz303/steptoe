@@ -11,6 +11,8 @@ Parser - Parse Only
 [x] variables
 [x] array
 [x] object
+[x] break
+[x] continue
 [ ] bin expressions
 [ ] unary expressions
 [ ] assignment

@@ -18,6 +18,8 @@ ident
 
 /* Tokens */
 
+BREAK 			= "break"		!ident_rest
+CONTINUE 		= "continue"	!ident_rest
 ELSE 			= "else"		!ident_rest
 FALSE 			= "false"		!ident_rest
 FUNCTION 		= "function" 	!ident_rest
@@ -53,6 +55,8 @@ Statements
 Statement
 	= WhileStatement
 	/ IfStatement
+	/ BreakStatement
+	/ ContinueStatement
 	/ ReturnStatement
 	/ ExpressionStatement
 
@@ -73,6 +77,12 @@ ElseClause
 
 Block
 	= '{' _ Statements '}' _
+
+BreakStatement
+	= BREAK _ ';' _
+
+ContinueStatement
+	= CONTINUE _ ';' _
 
 ReturnStatement
 	= RETURN _ Expression _ ';' _

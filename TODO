@@ -1,0 +1,19 @@
+Parser - Parse Only
+-------------------
+
+[x] function def
+[x] while
+[x] if
+[x] number
+[x] string
+[x] boolean
+[x] null
+[x] variables
+[x] array
+[x] object
+[ ] bin expressions
+[ ] unary expressions
+[ ] assignment
+[ ] call
+[ ] array deref
+[ ] object deref

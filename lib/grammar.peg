@@ -1,0 +1,151 @@
+{
+	var A = require('./ast');
+}
+
+/* Helpers */
+
+_
+	= [ \t\r\n]*
+
+ident_start
+	= [a-zA-Z_]
+
+ident_rest
+	= [a-zA-Z0-9_]
+
+ident
+	= $( ident_start ident_rest* )
+
+/* Tokens */
+
+ELSE 			= "else"		!ident_rest
+FALSE 			= "false"		!ident_rest
+FUNCTION 		= "function" 	!ident_rest
+IF 				= "if"			!ident_rest
+NULL 			= "null"		!ident_rest
+RETURN 			= "return"		!ident_rest
+TRUE 			= "true"		!ident_rest
+VAR 			= "var"			!ident_rest
+WHILE 			= "while"		!ident_rest
+
+/* Productions */
+
+Function
+	= _ FUNCTION _ name:ident _ params:FunctionParams _ body:FunctionBlock
+
+FunctionParams
+	= '(' _ FunctionParamList ')' _
+	/ '(' _ ')' _
+
+FunctionParamList
+	= ident _ ( ',' _ ident _ )*
+
+FunctionBlock
+	= '{' _ VariableDeclaration* Statements '}' _
+
+VariableDeclaration
+	= VAR _ ident _ '=' _ Expression ';' _
+	/ VAR _ ident _ ';' _
+
+Statements
+	= Statement*
+
+Statement
+	= WhileStatement
+	/ IfStatement
+	/ ReturnStatement
+	/ ExpressionStatement
+
+WhileStatement
+	= WHILE _ '(' _ Expression ')' _ Block
+
+IfStatement
+	= IfClause ElseIfClause* ElseClause?
+
+IfClause
+	= IF _ '(' _ Expression ')' _ Block
+
+ElseIfClause
+	= ELSE _ IF _ '(' _ Expression ')' _ Block
+
+ElseClause
+	= ELSE _ Block
+
+Block
+	= '{' _ Statements '}' _
+
+ReturnStatement
+	= RETURN _ Expression _ ';' _
+	/ RETURN _ ';' _
+
+ExpressionStatement
+	= Expression _ ';' _
+
+Expression
+	= Array
+	/ Object
+	/ Atom _
+
+Array
+	= '[' _ ExpressionList ']' _
+	/ '[' _ ']' _
+
+ExpressionList
+	= Expression _ ( ',' _ Expression )*
+
+Object
+	= '{' _ Pairs '}' _
+	/ '{' _ '}' _
+
+Pairs
+	= Pair ( ',' _ Pair )*
+
+Pair
+	= Key _ ':' _ Expression
+
+Key
+	= ident
+
+Atom
+	= Number
+	/ String
+	/ Boolean
+	/ Null
+
+Number
+	= Float
+	/ Integer
+
+String
+	= "'" StringCharSingle* "'"
+	/ '"' StringCharDouble* '"'
+
+StringCharSingle
+	= EscapeChar
+	/ !['\\] .
+
+StringCharDouble
+	= EscapeChar
+	/ !["\\] .
+
+EscapeChar
+	= "\\n"		{ return "\n"; }
+	/ "\\r"		{ return "\r"; }
+	/ "\\t"		{ return "\t"; }
+	/ "\\'"		{ return "'"; }
+	/ '\\"'		{ return '"'; }
+	/ '\\\\'	{ return "\\"; }
+
+Float
+	= [0-9]+ '.' [0-9]+
+
+Integer
+	= [1-9] [0-9]*
+
+Boolean
+	= TRUE
+	/ FALSE
+
+Null
+	= NULL
+

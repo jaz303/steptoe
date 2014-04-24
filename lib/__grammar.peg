@@ -1,0 +1,166 @@
+{
+    
+}
+
+/*
+ * Entry
+ */
+
+Start
+    = FnDef
+
+/*
+ * Helpers
+ */
+
+_
+    = [ \t\r\n]*
+
+__
+    = [ \t\r\n]+
+
+ident_start
+    = [a-zA-Z_]
+
+ident_rest
+    = [a-zA-Z0-9_]
+
+ident
+    = $ ( ident_start ident_rest* )
+
+non_zero_digit
+    = [1-9]
+
+digit
+    = [0-9]
+
+float
+    = $ ( non_zero_digit digit* '.' digit+ )
+
+integer
+    = $ ( non_zero_digit digit* )
+
+/*
+ * Productions
+ */
+
+FnDef
+    = 'function' __ ident _ FnParams _ FnBlock
+
+FnParams
+    = '(' _ FnParamList ')'
+    / '(' _ ')'
+
+FnParamList
+    = ident _ (',' _ ident _)*
+
+FnBlock
+    = '{' _ VariableDeclarations Statements '}' _
+    / '{' _ Statements '}' _
+
+VariableDeclarations
+    = 'var' __ VariableDeclaration (',' _ VariableDeclaration)*
+
+VariableDeclaration
+    = Ident _ '=' _ Expression
+    / Ident
+
+Statements
+    = Statement*
+
+Statement
+    = WhileStatement
+    / ReturnStatement
+    / Expression
+
+WhileStatement
+    = 'while' _ '(' _ Expression ')' _ Block
+
+Block
+    = '{' _ Statements '}' _
+
+ReturnStatement
+    = 'return' _ ';' _
+    / 'return' __ Expression ';' _
+
+Expression
+    = Array
+    / Atom
+
+Array
+    = '[' _ ']' _
+
+Atom
+    = Number
+    / Boolean
+    / Null
+    / Ident
+
+Number
+    = float
+    / integer
+
+Boolean
+    = 'true'
+    / 'false'
+
+Null
+    = 'null'
+
+Ident
+    = ident
+
+
+/* Operators */
+
+RelationalOp
+    = '<='
+    / '>='
+    / $('<' !'<')
+    / $('>' !'>')
+    / 'in'
+
+ShiftOp
+    = '<<'
+    / '>>>'
+    / '>>'
+
+AdditiveOp
+    = '+'
+    / '-'
+
+MultiplicativeOp
+    = '**'
+    / '*'
+    / '/'
+    / '%'
+
+UnaryOp
+    = '+'
+    / '-'
+    / '~'
+    / '!'
+
+/* Expressions */
+
+RelationalExp
+    = ShiftExp ( _ RelationalOp _ ShiftExp )*
+
+ShiftExp
+    = AdditiveExp ( _ ShiftOp _ AdditiveExp )*
+
+AdditiveExp
+    = MultiplicativeExp ( _ AdditiveOp _ MultiplicativeExp )*
+
+MultiplicativeExp
+    = UnaryExp ( _ MultiplicativeOp _ UnaryExp )*
+
+UnaryExp
+    = UnaryOp UnaryExp
+
+
+
+
+
+
+

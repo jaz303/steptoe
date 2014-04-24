@@ -1,0 +1,27 @@
+
+
+
+function foo(a, b, c) {
+	var a = true;
+	var b = { a:123, b: 420};
+	var c = "foo\nfsdf";
+
+
+	if (1) {
+		1;
+		2;
+		3;
+	} else if (2) {
+
+	} else if (3) {
+		return;
+	}
+
+	return ;
+	while (true) {
+
+	}
+}
+
+
+

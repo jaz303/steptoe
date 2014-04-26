@@ -16,6 +16,26 @@ ident_rest
 ident
 	= $( ident_start ident_rest* )
 
+string
+	= "'" chars:string_char_single* "'" { return chars.join(''); }
+	/ '"' chars:string_char_double* '"' { return chars.join(''); }
+
+string_char_single
+	= escape_char
+	/ $ ( !['\\] . )
+
+string_char_double
+	= escape_char
+	/ $ ( !["\\] . )
+
+escape_char
+	= "\\n"		{ return "\n"; }
+	/ "\\r"		{ return "\r"; }
+	/ "\\t"		{ return "\t"; }
+	/ "\\'"		{ return "'"; }
+	/ '\\"'		{ return '"'; }
+	/ '\\\\'	{ return "\\"; }
+
 /* Tokens */
 
 BREAK 			= "break"		!ident_rest
@@ -32,25 +52,55 @@ WHILE 			= "while"		!ident_rest
 
 /* Productions */
 
-Function
-	= _ FUNCTION _ name:ident _ params:FunctionParams _ body:FunctionBlock
+FunctionDef
+	= _ FUNCTION _ name:ident _ params:FunctionParams _ inner:FunctionBlock {
+		var fndef = new A.FunctionDef();
+		fndef.setName(name);
+		fndef.setParams(params);
+		fndef.setInnerFunctions(inner.innerFunctions);
+		fndef.setVariables(inner.variables);
+		fndef.setBody(inner.body);
+		return fndef;
+	}
 
 FunctionParams
-	= '(' _ FunctionParamList ')' _
-	/ '(' _ ')' _
+	= '(' _ params:FunctionParamList ')' _ {
+		return params;
+	}
+	/ '(' _ ')' _ {
+		return [];
+	}
 
 FunctionParamList
-	= ident _ ( ',' _ ident _ )*
+	= head:ident _ rest:( ',' _ ident _ )* {
+		return [head].concat(rest.map(function(r) {
+			return r[2];
+		}));
+	}
 
 FunctionBlock
-	= '{' _ VariableDeclaration* Statements '}' _
+	= '{' _ vars:VariableDeclaration* fns:FunctionDef* body:Statements '}' _ {
+		return {
+			variables 		: vars,
+			innerFunctions	: fns,
+			body 			: body
+		};
+	}
 
 VariableDeclaration
-	= VAR _ ident _ '=' _ Expression ';' _
-	/ VAR _ ident _ ';' _
+	= VAR _ name:ident _ '=' _ initialValue:Expression ';' _ {
+		return { name: name, initialValue: initialValue };
+	}
+	/ VAR _ name:ident _ ';' _ {
+		return { name: name };
+	}
 
 Statements
-	= Statement*
+	= all:Statement* {
+		var stmts = new A.Statements();
+		all.forEach(function(s) { stmts.addStatement(s); });
+		return stmts;
+	}
 
 Statement
 	= WhileStatement
@@ -61,22 +111,41 @@ Statement
 	/ ExpressionStatement
 
 WhileStatement
-	= WHILE _ '(' _ Expression ')' _ Block
+	= WHILE _ '(' _ cond:Expression ')' _ body:Block {
+		var stmt = new A.WhileStmt();
+		stmt.setCondition(cond);
+		stmt.setBody(body);
+		return stmt;
+	}
 
 IfStatement
-	= IfClause ElseIfClause* ElseClause?
+	= i:IfClause eis:ElseIfClause* e:ElseClause? {
+		var stmt = new A.IfStmt();
+		stmt.addClause(i);
+		eis.forEach(function(c) { stmt.addClause(i); });
+		if (e) stmt.addClause(e);
+		return stmt;
+	}
 
 IfClause
-	= IF _ '(' _ Expression ')' _ Block
+	= IF _ '(' _ exp:Expression ')' _ body:Block {
+		return { condition: exp, body: body };
+	}
 
 ElseIfClause
-	= ELSE _ IF _ '(' _ Expression ')' _ Block
+	= ELSE _ IF _ '(' _ exp:Expression ')' _ body:Block {
+		return { condition: exp, body: body };
+	}
 
 ElseClause
-	= ELSE _ Block
+	= ELSE _ body: Block {
+		return { condition: null, body: body };
+	}
 
 Block
-	= '{' _ Statements '}' _
+	= '{' _ stmts:Statements '}' _ {
+		return stmts;
+	}
 
 BreakStatement
 	= BREAK _ ';' _
@@ -85,77 +154,91 @@ ContinueStatement
 	= CONTINUE _ ';' _
 
 ReturnStatement
-	= RETURN _ Expression _ ';' _
-	/ RETURN _ ';' _
+	= RETURN _ exp:Expression _ ';' _ {
+		var stmt = new A.ReturnStmt();
+		stmt.setReturnValue(exp);
+		return stmt;
+	}
+	/ RETURN _ ';' _ {
+		var stmt = new A.ReturnStmt();
+		return stmt;
+	}
 
 ExpressionStatement
-	= Expression _ ';' _
+	= exp:Expression _ ';' _ { return exp; }
 
 Expression
 	= Array
 	/ Object
-	/ Atom _
+	/ atom:Atom _ { return atom; }
 
 Array
-	= '[' _ ExpressionList ']' _
-	/ '[' _ ']' _
+	= '[' _ exps:ExpressionList ']' _ {
+		var ary = new A.ArrayLiteral();
+		exps.forEach(function(e) { ary.addExpression(e); });
+		return ary;
+	}
+	/ '[' _ ']' _ {
+		return new A.ArrayLiteral();
+	}
 
 ExpressionList
-	= Expression _ ( ',' _ Expression )*
+	= head:Expression _ rest:( ',' _ Expression )* {
+		return [head].concat(rest.map(function(r) { return r[2]; }));
+	}
 
 Object
-	= '{' _ Pairs '}' _
-	/ '{' _ '}' _
+	= '{' _ pairs:Pairs '}' _ {
+		var obj = new A.ObjectLiteral();
+		pairs.forEach(function(p) {
+			obj.addPair(p.key, p.value);
+		});
+		return obj;
+	}
+	/ '{' _ '}' _ {
+		return new A.ObjectLiteral();
+	}
 
 Pairs
-	= Pair ( ',' _ Pair )*
+	= head:Pair rest:( ',' _ Pair )* {
+		return [head].concat(rest.map(function(r) { return r[2]; }));
+	}
 
 Pair
-	= Key _ ':' _ Expression
+	= key:Key _ ':' _ value:Expression {
+		return { key: key, value: value };
+	}
 
 Key
 	= ident
+	/ string
 
 Atom
 	= Number
 	/ String
 	/ Boolean
 	/ Null
+	/ Ident
 
 Number
 	= Float
 	/ Integer
 
 String
-	= "'" StringCharSingle* "'"
-	/ '"' StringCharDouble* '"'
-
-StringCharSingle
-	= EscapeChar
-	/ !['\\] .
-
-StringCharDouble
-	= EscapeChar
-	/ !["\\] .
-
-EscapeChar
-	= "\\n"		{ return "\n"; }
-	/ "\\r"		{ return "\r"; }
-	/ "\\t"		{ return "\t"; }
-	/ "\\'"		{ return "'"; }
-	/ '\\"'		{ return '"'; }
-	/ '\\\\'	{ return "\\"; }
+	= str:string { return new A.PrimitiveLiteral(str); }
 
 Float
-	= [0-9]+ '.' [0-9]+
+	= text: $ ( [0-9]+ '.' [0-9]+ ) { return new A.PrimitiveLiteral(parseFloat(text)); }
 
 Integer
-	= [1-9] [0-9]*
+	= text: $ ( [1-9] [0-9]* ) { return new A.PrimitiveLiteral(parseInt(text, 10)); }
 
 Boolean
-	= TRUE
-	/ FALSE
+	= TRUE { return new A.PrimitiveLiteral(true); }
+	/ FALSE { return new A.PrimitiveLiteral(false); }
 
 Null
-	= NULL
+	= NULL { return new A.PrimitiveLiteral(null); }
 
+Ident
+	= ident:ident { return new A.Ident(ident); }

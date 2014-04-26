@@ -1,13 +1,31 @@
 
 
 
-function foo(a, b, c) {
+function foo(  alpha ,  bravo ,   charlie   ) {
 	var a = true;
 	var b = { a:123, b: 420};
 	var c = "foo\nfsdf";
+	var d  ;  
+
+	var e = { a: 1, "b" : 23 } ;
+
+	function inner1(a,b,c) {
+		var foo;
+	}
+
+	function inner2(d,e,f) {
+		var bar;
+	}
+
+	[];
+
+	[1,2,3,4];
+
+	[a, b, c];
 
 
-	if (1) {
+
+	if (420.12) {
 		1;
 		2;
 		3;

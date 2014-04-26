@@ -8,4 +8,8 @@ T.register('st:emitter', function() {
 
 var src = fs.readFileSync('test.stp', 'utf8');
 
-parser.parse(src);
+var parsed = parser.parse(src);
+
+var inspect = require('util').inspect;
+
+console.log(inspect(parsed, {depth: null, colors: true}));

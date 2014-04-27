@@ -1,5 +1,13 @@
 {
 	var A = require('./ast');
+
+	function makeBinaryOperator(head, rest) {
+		var result = head;
+		rest.forEach(function(i) {
+			result = new A.BinOpExp(result, i[0], i[2]);
+		});
+		return result;
+	}
 }
 
 /* Helpers */
@@ -36,6 +44,12 @@ escape_char
 	/ '\\"'		{ return '"'; }
 	/ '\\\\'	{ return "\\"; }
 
+float
+	= $ ( [0-9]+ '.' [0-9]+ )
+
+integer
+	= $ ( [1-9] [0-9]* )
+
 /* Tokens */
 
 BREAK 			= "break"		!ident_rest
@@ -49,6 +63,7 @@ RETURN 			= "return"		!ident_rest
 TRUE 			= "true"		!ident_rest
 VAR 			= "var"			!ident_rest
 WHILE 			= "while"		!ident_rest
+EOS 			= _ ';' _
 
 /* Productions */
 
@@ -148,29 +163,31 @@ Block
 	}
 
 BreakStatement
-	= BREAK _ ';' _
+	= BREAK EOS
 
 ContinueStatement
-	= CONTINUE _ ';' _
+	= CONTINUE EOS
 
 ReturnStatement
-	= RETURN _ exp:Expression _ ';' _ {
+	= RETURN _ exp:Expression EOS {
 		var stmt = new A.ReturnStmt();
 		stmt.setReturnValue(exp);
 		return stmt;
 	}
-	/ RETURN _ ';' _ {
+	/ RETURN EOS {
 		var stmt = new A.ReturnStmt();
 		return stmt;
 	}
 
 ExpressionStatement
-	= exp:Expression _ ';' _ { return exp; }
+	= exp:Expression EOS { return exp; }
 
-Expression
-	= Array
+PrimaryExpression
+	= Ident
+	/ Literal
+	/ Array
 	/ Object
-	/ atom:Atom _ { return atom; }
+	/ "(" _ exp:Expression _ ")" _ { return exp; }
 
 Array
 	= '[' _ exps:ExpressionList ']' _ {
@@ -212,33 +229,216 @@ Pair
 Key
 	= ident
 	/ string
+	/ float
+	/ integer
 
-Atom
+Literal
 	= Number
 	/ String
 	/ Boolean
 	/ Null
-	/ Ident
 
 Number
 	= Float
 	/ Integer
 
 String
-	= str:string { return new A.PrimitiveLiteral(str); }
+	= str:string _ { return new A.PrimitiveLiteral(str); }
 
 Float
-	= text: $ ( [0-9]+ '.' [0-9]+ ) { return new A.PrimitiveLiteral(parseFloat(text)); }
+	= value:float _ { return new A.PrimitiveLiteral(parseFloat(value)); }
 
 Integer
-	= text: $ ( [1-9] [0-9]* ) { return new A.PrimitiveLiteral(parseInt(text, 10)); }
+	= value:integer _ { return new A.PrimitiveLiteral(parseInt(value, 10)); }
 
 Boolean
-	= TRUE { return new A.PrimitiveLiteral(true); }
-	/ FALSE { return new A.PrimitiveLiteral(false); }
+	= TRUE _ { return new A.PrimitiveLiteral(true); }
+	/ FALSE _ { return new A.PrimitiveLiteral(false); }
 
 Null
-	= NULL { return new A.PrimitiveLiteral(null); }
+	= NULL _ { return new A.PrimitiveLiteral(null); }
 
 Ident
-	= ident:ident { return new A.Ident(ident); }
+	= ident:ident _ { return new A.Ident(ident); }
+
+/* Operators */
+
+UnaryOperator
+	= "+"
+	/ "-"
+	/ "~"
+	/ "!"
+
+MultiplicativeOperator
+	= "*"
+	/ "/"
+	/ "%"
+
+AdditiveOperator
+	= "+"
+	/ "-"
+
+ShiftOperator
+	= "<<"
+	/ ">>>"
+	/ ">>"
+
+RelationalOperator
+	= "<="
+	/ ">="
+	/ $("<" !"<")
+	/ $(">" !">")
+
+EqualityOperator
+	= "==="
+	/ "!=="
+	/ "=="
+	/ "!="
+
+BitwiseAndOperator
+	= $("&" !"&")
+
+BitwiseXorOperator
+	= "^"
+
+BitwiseOrOperator
+	= $("|" !"|")
+
+LogicalAndOperator
+	= "&&"
+
+LogicalOrOperator
+	= "||"
+
+/* Expression */
+
+Expression
+	= AssignmentExpression
+
+AssignmentExpression
+	= l:LeftHandSideExpression _ "=" !"=" _ r:AssignmentExpression {
+		var exp = new A.AssignExp();
+		exp.setLeft(l);
+		exp.setRight(r);
+		return exp;
+	}
+	/ LogicalOrExpression
+
+LogicalOrExpression
+	= head:LogicalAndExpression rest:( LogicalOrOperator _ LogicalAndExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+LogicalAndExpression
+	= head:BitwiseOrExpression rest:( LogicalAndOperator _ BitwiseOrExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+BitwiseOrExpression
+	= head:BitwiseXorExpression rest: ( BitwiseOrOperator _ BitwiseXorExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+BitwiseXorExpression
+	= head:BitwiseAndExpression rest: ( BitwiseXorOperator _ BitwiseAndExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+BitwiseAndExpression
+	= head:EqualityExpression rest: ( BitwiseAndOperator _ EqualityExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+EqualityExpression
+	= head:RelationalExpression rest: ( EqualityOperator _ RelationalExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+RelationalExpression
+	= head:ShiftExpression rest: ( RelationalOperator _ ShiftExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+ShiftExpression
+	= head:AdditiveExpression rest: ( ShiftOperator _ AdditiveExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+AdditiveExpression
+	= head:MultiplicativeExpression rest: ( AdditiveOperator _ MultiplicativeExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+MultiplicativeExpression
+	= head:UnaryExpression rest: ( MultiplicativeOperator _ UnaryExpression )* {
+		return makeBinaryOperator(head, rest);
+	}
+
+UnaryExpression
+	= LeftHandSideExpression
+	/ op:UnaryOperator _ exp:UnaryExpression {
+		return new A.UnaryOpExp(op, exp);
+	}
+
+LeftHandSideExpression
+	= CallExpression
+	/ MemberExpression
+
+CallExpression
+	= callee:MemberExpression args:Arguments rest:(CallCons)* {
+		var result = new A.CallExp(callee, args);
+		rest.forEach(function(r) {
+			if (Array.isArray(r)) {
+				result = new A.CallExp(result, r);
+			} else if (r.computed) {
+				result = new A.ComputedMemberExp(result, r.property);
+			} else {
+				result = new A.StaticMemberExp(result, r.property);
+			}
+		});
+		return result;
+	}
+
+Arguments
+	= '(' _ args:ArgumentList ')' _ {
+		return args;
+	}
+	/ '(' _ ')' _ {
+		return [];
+	}
+
+ArgumentList
+	= head:Expression rest:( ',' _ Expression )* {
+		return [head].concat(rest.map(function(r) { return r[2]; }));
+	}
+
+CallCons
+	= Arguments
+	/ Member
+
+MemberExpression
+	= first:PrimaryExpression rest:Member* {
+		var result = first;
+		rest.forEach(function(r) {
+			if (r.computed) {
+				result = new A.ComputedMemberExp(result, r.property);
+			} else {
+				result = new A.StaticMemberExp(result, r.property);
+			}
+		});
+		return result;
+	}
+
+Member
+	= ComputedMember
+	/ StaticMember
+
+ComputedMember
+	= '[' _ property:Expression ']' _ {
+		return { computed: true, property: property };
+	}
+
+StaticMember
+	= '.' _ property:ident _ {
+		return { computed: false, property: property };
+	}

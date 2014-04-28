@@ -1,3 +1,7 @@
-function a() {
-	foo . bar [ 30 ] . baz ( "bleem" ) ( 4 , 5 , 6 ) ;
+function main() {
+	print("hello world!");
+}
+
+function print(message) {
+	_nativePrint(message);
 }

@@ -1,444 +1,473 @@
 {
-	var A = require('./ast');
+    var A = require('./ast');
 
-	function makeBinaryOperator(head, rest) {
-		var result = head;
-		rest.forEach(function(i) {
-			result = new A.BinOpExp(result, i[0], i[2]);
-		});
-		return result;
-	}
+    function makeBinaryOperator(head, rest) {
+        var result = head;
+        rest.forEach(function(i) {
+            if (i[0] === '||') {
+                result = new A.LogicalOrExp(result, i[2]);
+            } else if (i[0] === '&&') {
+                result = new A.LogicalAndExp(result, i[2]);
+            } else {
+                result = new A.BinOpExp(result, i[0], i[2]);
+            }
+        });
+        return result;
+    }
 }
 
 /* Helpers */
 
 _
-	= [ \t\r\n]*
+    = [ \t\r\n]*
 
 ident_start
-	= [a-zA-Z_]
+    = [a-zA-Z_]
 
 ident_rest
-	= [a-zA-Z0-9_]
+    = [a-zA-Z0-9_]
 
 ident
-	= $( ident_start ident_rest* )
+    = $( ident_start ident_rest* )
 
 string
-	= "'" chars:string_char_single* "'" { return chars.join(''); }
-	/ '"' chars:string_char_double* '"' { return chars.join(''); }
+    = "'" chars:string_char_single* "'" { return chars.join(''); }
+    / '"' chars:string_char_double* '"' { return chars.join(''); }
 
 string_char_single
-	= escape_char
-	/ $ ( !['\\] . )
+    = escape_char
+    / $ ( !['\\] . )
 
 string_char_double
-	= escape_char
-	/ $ ( !["\\] . )
+    = escape_char
+    / $ ( !["\\] . )
 
 escape_char
-	= "\\n"		{ return "\n"; }
-	/ "\\r"		{ return "\r"; }
-	/ "\\t"		{ return "\t"; }
-	/ "\\'"		{ return "'"; }
-	/ '\\"'		{ return '"'; }
-	/ '\\\\'	{ return "\\"; }
+    = "\\n"     { return "\n"; }
+    / "\\r"     { return "\r"; }
+    / "\\t"     { return "\t"; }
+    / "\\'"     { return "'"; }
+    / '\\"'     { return '"'; }
+    / '\\\\'    { return "\\"; }
 
 float
-	= $ ( [0-9]+ '.' [0-9]+ )
+    = $ ( [0-9]+ '.' [0-9]+ )
 
 integer
-	= $ ( [1-9] [0-9]* )
+    = $ ( [1-9] [0-9]* )
 
 /* Tokens */
 
-BREAK 			= "break"		!ident_rest
-CONTINUE 		= "continue"	!ident_rest
-ELSE 			= "else"		!ident_rest
-FALSE 			= "false"		!ident_rest
-FUNCTION 		= "function" 	!ident_rest
-IF 				= "if"			!ident_rest
-NULL 			= "null"		!ident_rest
-RETURN 			= "return"		!ident_rest
-TRUE 			= "true"		!ident_rest
-VAR 			= "var"			!ident_rest
-WHILE 			= "while"		!ident_rest
-EOS 			= _ ';' _
+BREAK           = "break"       !ident_rest
+CONTINUE        = "continue"    !ident_rest
+ELSE            = "else"        !ident_rest
+FALSE           = "false"       !ident_rest
+FUNCTION        = "function"    !ident_rest
+IF              = "if"          !ident_rest
+NULL            = "null"        !ident_rest
+RETURN          = "return"      !ident_rest
+TRUE            = "true"        !ident_rest
+VAR             = "var"         !ident_rest
+WHILE           = "while"       !ident_rest
+EOS             = _ ';' _
 
 /* Productions */
 
+Program
+    = _ fns:FunctionDef* {
+        return fns;
+    }
+
 FunctionDef
-	= _ FUNCTION _ name:ident _ params:FunctionParams _ inner:FunctionBlock {
-		var fndef = new A.FunctionDef();
-		fndef.setName(name);
-		fndef.setParams(params);
-		fndef.setInnerFunctions(inner.innerFunctions);
-		fndef.setVariables(inner.variables);
-		fndef.setBody(inner.body);
-		return fndef;
-	}
+    = _ FUNCTION _ name:ident _ params:FunctionParams _ inner:FunctionBlock {
+        var fndef = new A.FunctionDef();
+        fndef.setName(name);
+        fndef.setParams(params);
+        fndef.setInnerFunctions(inner.innerFunctions);
+        fndef.setVariables(inner.variables);
+        fndef.setBody(inner.body);
+        return fndef;
+    }
 
 FunctionParams
-	= '(' _ params:FunctionParamList ')' _ {
-		return params;
-	}
-	/ '(' _ ')' _ {
-		return [];
-	}
+    = '(' _ params:FunctionParamList ')' _ {
+        return params;
+    }
+    / '(' _ ')' _ {
+        return [];
+    }
 
 FunctionParamList
-	= head:ident _ rest:( ',' _ ident _ )* {
-		return [head].concat(rest.map(function(r) {
-			return r[2];
-		}));
-	}
+    = head:ident _ rest:( ',' _ ident _ )* {
+        return [head].concat(rest.map(function(r) {
+            return r[2];
+        }));
+    }
 
 FunctionBlock
-	= '{' _ vars:VariableDeclaration* fns:FunctionDef* body:Statements '}' _ {
-		return {
-			variables 		: vars,
-			innerFunctions	: fns,
-			body 			: body
-		};
-	}
+    = '{' _ vars:Variables fns:Functions body:Statements '}' _ {
+        return {
+            variables       : vars,
+            innerFunctions  : fns,
+            body            : body
+        };
+    }
+
+Variables
+    = vds:VariableDeclaration* {
+        var variables = new A.Variables();
+        vds.forEach(function(vd) {
+            variables.addVariable(vd.name, vd.initialValue);
+        });
+        return variables;
+    }
 
 VariableDeclaration
-	= VAR _ name:ident _ '=' _ initialValue:Expression ';' _ {
-		return { name: name, initialValue: initialValue };
-	}
-	/ VAR _ name:ident _ ';' _ {
-		return { name: name };
-	}
+    = VAR _ name:ident _ '=' _ initialValue:Expression ';' _ {
+        return { name: name, initialValue: initialValue };
+    }
+    / VAR _ name:ident _ ';' _ {
+        return { name: name };
+    }
+
+Functions
+    = fns:FunctionDef* {
+        var functions = new A.Functions();
+        fns.forEach(function(fn) {
+            functions.addFunction(fn);
+        })
+        return functions;
+    }
 
 Statements
-	= all:Statement* {
-		var stmts = new A.Statements();
-		all.forEach(function(s) { stmts.addStatement(s); });
-		return stmts;
-	}
+    = all:Statement* {
+        var stmts = new A.Statements();
+        all.forEach(function(s) { stmts.addStatement(s); });
+        return stmts;
+    }
 
 Statement
-	= WhileStatement
-	/ IfStatement
-	/ BreakStatement
-	/ ContinueStatement
-	/ ReturnStatement
-	/ ExpressionStatement
+    = WhileStatement
+    / IfStatement
+    / BreakStatement
+    / ContinueStatement
+    / ReturnStatement
+    / ExpressionStatement
 
 WhileStatement
-	= WHILE _ '(' _ cond:Expression ')' _ body:Block {
-		var stmt = new A.WhileStmt();
-		stmt.setCondition(cond);
-		stmt.setBody(body);
-		return stmt;
-	}
+    = WHILE _ '(' _ cond:Expression ')' _ body:Block {
+        var stmt = new A.WhileStmt();
+        stmt.setCondition(cond);
+        stmt.setBody(body);
+        return stmt;
+    }
 
 IfStatement
-	= i:IfClause eis:ElseIfClause* e:ElseClause? {
-		var stmt = new A.IfStmt();
-		stmt.addClause(i);
-		eis.forEach(function(c) { stmt.addClause(i); });
-		if (e) stmt.addClause(e);
-		return stmt;
-	}
+    = i:IfClause eis:ElseIfClause* e:ElseClause? {
+        var stmt = new A.IfStmt();
+        stmt.addClause(i.condition, i.body);
+        eis.forEach(function(c) { stmt.addClause(c.condition, c.body); });
+        if (e) stmt.addClause(e.condition, e.body);
+        return stmt;
+    }
 
 IfClause
-	= IF _ '(' _ exp:Expression ')' _ body:Block {
-		return { condition: exp, body: body };
-	}
+    = IF _ '(' _ exp:Expression ')' _ body:Block {
+        return { condition: exp, body: body };
+    }
 
 ElseIfClause
-	= ELSE _ IF _ '(' _ exp:Expression ')' _ body:Block {
-		return { condition: exp, body: body };
-	}
+    = ELSE _ IF _ '(' _ exp:Expression ')' _ body:Block {
+        return { condition: exp, body: body };
+    }
 
 ElseClause
-	= ELSE _ body: Block {
-		return { condition: null, body: body };
-	}
+    = ELSE _ body: Block {
+        return { condition: null, body: body };
+    }
 
 Block
-	= '{' _ stmts:Statements '}' _ {
-		return stmts;
-	}
+    = '{' _ stmts:Statements '}' _ {
+        return stmts;
+    }
 
 BreakStatement
-	= BREAK EOS
+    = BREAK EOS
 
 ContinueStatement
-	= CONTINUE EOS
+    = CONTINUE EOS
 
 ReturnStatement
-	= RETURN _ exp:Expression EOS {
-		var stmt = new A.ReturnStmt();
-		stmt.setReturnValue(exp);
-		return stmt;
-	}
-	/ RETURN EOS {
-		var stmt = new A.ReturnStmt();
-		return stmt;
-	}
+    = RETURN _ exp:Expression EOS {
+        var stmt = new A.ReturnStmt();
+        stmt.setReturnValue(exp);
+        return stmt;
+    }
+    / RETURN EOS {
+        var stmt = new A.ReturnStmt();
+        return stmt;
+    }
 
 ExpressionStatement
-	= exp:Expression EOS { return exp; }
+    = exp:Expression EOS { return exp; }
 
 PrimaryExpression
-	= Ident
-	/ Literal
-	/ Array
-	/ Object
-	/ "(" _ exp:Expression _ ")" _ { return exp; }
+    = Ident
+    / Literal
+    / Array
+    / Object
+    / "(" _ exp:Expression _ ")" _ { return exp; }
 
 Array
-	= '[' _ exps:ExpressionList ']' _ {
-		var ary = new A.ArrayLiteral();
-		exps.forEach(function(e) { ary.addExpression(e); });
-		return ary;
-	}
-	/ '[' _ ']' _ {
-		return new A.ArrayLiteral();
-	}
+    = '[' _ exps:ExpressionList ']' _ {
+        var ary = new A.ArrayLiteral();
+        exps.forEach(function(e) { ary.addExpression(e); });
+        return ary;
+    }
+    / '[' _ ']' _ {
+        return new A.ArrayLiteral();
+    }
 
 ExpressionList
-	= head:Expression _ rest:( ',' _ Expression )* {
-		return [head].concat(rest.map(function(r) { return r[2]; }));
-	}
+    = head:Expression _ rest:( ',' _ Expression )* {
+        return [head].concat(rest.map(function(r) { return r[2]; }));
+    }
 
 Object
-	= '{' _ pairs:Pairs '}' _ {
-		var obj = new A.ObjectLiteral();
-		pairs.forEach(function(p) {
-			obj.addPair(p.key, p.value);
-		});
-		return obj;
-	}
-	/ '{' _ '}' _ {
-		return new A.ObjectLiteral();
-	}
+    = '{' _ pairs:Pairs '}' _ {
+        var obj = new A.ObjectLiteral();
+        pairs.forEach(function(p) {
+            obj.addPair(p.key, p.value);
+        });
+        return obj;
+    }
+    / '{' _ '}' _ {
+        return new A.ObjectLiteral();
+    }
 
 Pairs
-	= head:Pair rest:( ',' _ Pair )* {
-		return [head].concat(rest.map(function(r) { return r[2]; }));
-	}
+    = head:Pair rest:( ',' _ Pair )* {
+        return [head].concat(rest.map(function(r) { return r[2]; }));
+    }
 
 Pair
-	= key:Key _ ':' _ value:Expression {
-		return { key: key, value: value };
-	}
+    = key:Key _ ':' _ value:Expression {
+        return { key: key, value: value };
+    }
 
 Key
-	= ident
-	/ string
-	/ float
-	/ integer
+    = ident
+    / string
+    / float
+    / integer
 
 Literal
-	= Number
-	/ String
-	/ Boolean
-	/ Null
+    = Number
+    / String
+    / Boolean
+    / Null
 
 Number
-	= Float
-	/ Integer
+    = Float
+    / Integer
 
 String
-	= str:string _ { return new A.PrimitiveLiteral(str); }
+    = str:string _ { return new A.PrimitiveLiteral(str); }
 
 Float
-	= value:float _ { return new A.PrimitiveLiteral(parseFloat(value)); }
+    = value:float _ { return new A.PrimitiveLiteral(parseFloat(value)); }
 
 Integer
-	= value:integer _ { return new A.PrimitiveLiteral(parseInt(value, 10)); }
+    = value:integer _ { return new A.PrimitiveLiteral(parseInt(value, 10)); }
 
 Boolean
-	= TRUE _ { return new A.PrimitiveLiteral(true); }
-	/ FALSE _ { return new A.PrimitiveLiteral(false); }
+    = TRUE _ { return new A.PrimitiveLiteral(true); }
+    / FALSE _ { return new A.PrimitiveLiteral(false); }
 
 Null
-	= NULL _ { return new A.PrimitiveLiteral(null); }
+    = NULL _ { return new A.PrimitiveLiteral(null); }
 
 Ident
-	= ident:ident _ { return new A.Ident(ident); }
+    = ident:ident _ { return new A.Ident(ident); }
 
 /* Operators */
 
 UnaryOperator
-	= "+"
-	/ "-"
-	/ "~"
-	/ "!"
+    = "+"
+    / "-"
+    / "~"
+    / "!"
 
 MultiplicativeOperator
-	= "*"
-	/ "/"
-	/ "%"
+    = "*"
+    / "/"
+    / "%"
 
 AdditiveOperator
-	= "+"
-	/ "-"
+    = "+"
+    / "-"
 
 ShiftOperator
-	= "<<"
-	/ ">>>"
-	/ ">>"
+    = "<<"
+    / ">>>"
+    / ">>"
 
 RelationalOperator
-	= "<="
-	/ ">="
-	/ $("<" !"<")
-	/ $(">" !">")
+    = "<="
+    / ">="
+    / $("<" !"<")
+    / $(">" !">")
 
 EqualityOperator
-	= "==="
-	/ "!=="
-	/ "=="
-	/ "!="
+    = "==="
+    / "!=="
+    / "=="
+    / "!="
 
 BitwiseAndOperator
-	= $("&" !"&")
+    = $("&" !"&")
 
 BitwiseXorOperator
-	= "^"
+    = "^"
 
 BitwiseOrOperator
-	= $("|" !"|")
+    = $("|" !"|")
 
 LogicalAndOperator
-	= "&&"
+    = "&&"
 
 LogicalOrOperator
-	= "||"
+    = "||"
 
 /* Expression */
 
 Expression
-	= AssignmentExpression
+    = AssignmentExpression
 
 AssignmentExpression
-	= l:LeftHandSideExpression _ "=" !"=" _ r:AssignmentExpression {
-		var exp = new A.AssignExp();
-		exp.setLeft(l);
-		exp.setRight(r);
-		return exp;
-	}
-	/ LogicalOrExpression
+    = l:LeftHandSideExpression _ "=" !"=" _ r:AssignmentExpression {
+        var exp = new A.AssignExp();
+        exp.setLeft(l);
+        exp.setRight(r);
+        return exp;
+    }
+    / LogicalOrExpression
 
 LogicalOrExpression
-	= head:LogicalAndExpression rest:( LogicalOrOperator _ LogicalAndExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:LogicalAndExpression rest:( LogicalOrOperator _ LogicalAndExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 LogicalAndExpression
-	= head:BitwiseOrExpression rest:( LogicalAndOperator _ BitwiseOrExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:BitwiseOrExpression rest:( LogicalAndOperator _ BitwiseOrExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 BitwiseOrExpression
-	= head:BitwiseXorExpression rest: ( BitwiseOrOperator _ BitwiseXorExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:BitwiseXorExpression rest: ( BitwiseOrOperator _ BitwiseXorExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 BitwiseXorExpression
-	= head:BitwiseAndExpression rest: ( BitwiseXorOperator _ BitwiseAndExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:BitwiseAndExpression rest: ( BitwiseXorOperator _ BitwiseAndExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 BitwiseAndExpression
-	= head:EqualityExpression rest: ( BitwiseAndOperator _ EqualityExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:EqualityExpression rest: ( BitwiseAndOperator _ EqualityExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 EqualityExpression
-	= head:RelationalExpression rest: ( EqualityOperator _ RelationalExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:RelationalExpression rest: ( EqualityOperator _ RelationalExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 RelationalExpression
-	= head:ShiftExpression rest: ( RelationalOperator _ ShiftExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:ShiftExpression rest: ( RelationalOperator _ ShiftExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 ShiftExpression
-	= head:AdditiveExpression rest: ( ShiftOperator _ AdditiveExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:AdditiveExpression rest: ( ShiftOperator _ AdditiveExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 AdditiveExpression
-	= head:MultiplicativeExpression rest: ( AdditiveOperator _ MultiplicativeExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:MultiplicativeExpression rest: ( AdditiveOperator _ MultiplicativeExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 MultiplicativeExpression
-	= head:UnaryExpression rest: ( MultiplicativeOperator _ UnaryExpression )* {
-		return makeBinaryOperator(head, rest);
-	}
+    = head:UnaryExpression rest: ( MultiplicativeOperator _ UnaryExpression )* {
+        return makeBinaryOperator(head, rest);
+    }
 
 UnaryExpression
-	= LeftHandSideExpression
-	/ op:UnaryOperator _ exp:UnaryExpression {
-		return new A.UnaryOpExp(op, exp);
-	}
+    = LeftHandSideExpression
+    / op:UnaryOperator _ exp:UnaryExpression {
+        return new A.UnaryOpExp(op, exp);
+    }
 
 LeftHandSideExpression
-	= CallExpression
-	/ MemberExpression
+    = CallExpression
+    / MemberExpression
 
 CallExpression
-	= callee:MemberExpression args:Arguments rest:(CallCons)* {
-		var result = new A.CallExp(callee, args);
-		rest.forEach(function(r) {
-			if (Array.isArray(r)) {
-				result = new A.CallExp(result, r);
-			} else if (r.computed) {
-				result = new A.ComputedMemberExp(result, r.property);
-			} else {
-				result = new A.StaticMemberExp(result, r.property);
-			}
-		});
-		return result;
-	}
+    = callee:MemberExpression args:Arguments rest:(CallCons)* {
+        var result = new A.CallExp(callee, args);
+        rest.forEach(function(r) {
+            if (Array.isArray(r)) {
+                result = new A.CallExp(result, r);
+            } else if (r.computed) {
+                result = new A.ComputedMemberExp(result, r.property);
+            } else {
+                result = new A.StaticMemberExp(result, r.property);
+            }
+        });
+        return result;
+    }
 
 Arguments
-	= '(' _ args:ArgumentList ')' _ {
-		return args;
-	}
-	/ '(' _ ')' _ {
-		return [];
-	}
+    = '(' _ args:ArgumentList ')' _ {
+        return args;
+    }
+    / '(' _ ')' _ {
+        return [];
+    }
 
 ArgumentList
-	= head:Expression rest:( ',' _ Expression )* {
-		return [head].concat(rest.map(function(r) { return r[2]; }));
-	}
+    = head:Expression rest:( ',' _ Expression )* {
+        return [head].concat(rest.map(function(r) { return r[2]; }));
+    }
 
 CallCons
-	= Arguments
-	/ Member
+    = Arguments
+    / Member
 
 MemberExpression
-	= first:PrimaryExpression rest:Member* {
-		var result = first;
-		rest.forEach(function(r) {
-			if (r.computed) {
-				result = new A.ComputedMemberExp(result, r.property);
-			} else {
-				result = new A.StaticMemberExp(result, r.property);
-			}
-		});
-		return result;
-	}
+    = first:PrimaryExpression rest:Member* {
+        var result = first;
+        rest.forEach(function(r) {
+            if (r.computed) {
+                result = new A.ComputedMemberExp(result, r.property);
+            } else {
+                result = new A.StaticMemberExp(result, r.property);
+            }
+        });
+        return result;
+    }
 
 Member
-	= ComputedMember
-	/ StaticMember
+    = ComputedMember
+    / StaticMember
 
 ComputedMember
-	= '[' _ property:Expression ']' _ {
-		return { computed: true, property: property };
-	}
+    = '[' _ property:Expression ']' _ {
+        return { computed: true, property: property };
+    }
 
 StaticMember
-	= '.' _ property:ident _ {
-		return { computed: false, property: property };
-	}
+    = '.' _ property:ident _ {
+        return { computed: false, property: property };
+    }

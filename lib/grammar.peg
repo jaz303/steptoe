@@ -106,6 +106,7 @@ FunctionParamList
 
 FunctionBlock
     = '{' _ vars:Variables fns:Functions body:Statements '}' _ {
+        body.addFinalReturnStatement();
         return {
             variables       : vars,
             innerFunctions  : fns,

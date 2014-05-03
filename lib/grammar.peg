@@ -1,5 +1,5 @@
 {
-    var A = require('./ast');
+    var A = require('./runtime');
 
     function makeBinaryOperator(head, rest) {
         var result = head;

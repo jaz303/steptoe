@@ -1,43 +1,22 @@
-var prog    = require('./program'),
-    A       = require('./ast_nodes'),
-    E       = require('lexical-env');
+var parser = require('./lib/parser');
 
-function Context() {
-    this.frames = [];
-    this.nodes = [];
-    this.env = E.create();
+function createEnv() {
+	return new Env();
 }
 
-Context.prototype.ret = function(val) {
-    this.retVal = val;
-    this.frames.pop();
-    this.nodes.pop();
+function parseProgram(src) {
+    return parser.parse(src, {startRule: 'Program'});
 }
 
-Context.prototype.evaluate = function(node) {
-    this.frames.push(node.newFrame());
-    this.nodes.push(node);
+function parseFunction(src) {
+    return parser.parse(src, {startRule: 'FunctionDef'});
 }
 
-Context.prototype.step = function() {
-    this.nodes[this.nodes.length-1].step(
-        this.frames[this.frames.length-1],
-        this.env,
-        this
-    );
-}
+module.exports = {
+    Machine         : require('./lib/Machine'),
+    SyntaxError     : parser.SyntaxError,
 
-var ctx = new Context();
-ctx.evaluate(prog);
-
-E.def(ctx.env, 'a', 0);
-E.def(ctx.env, 'b', 0);
-E.def(ctx.env, 'i', 0);
-E.def(ctx.env, 'z', 0);
-
-while (ctx.frames.length) {
-    console.log(ctx.frames[ctx.frames.length-1]);
-    ctx.step();
-}
-
-console.log(ctx.env);
+    createEnv 		: createEnv,
+    parseProgram    : parseProgram,
+    parseFunction   : parseFunction
+};

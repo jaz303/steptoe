@@ -1,7 +1,13 @@
 var parser = require('./lib/parser');
+var Env = require('./lib/Env');
+var FunctionDef = require('./lib/runtime/FunctionDef');
 
 function createEnv() {
 	return new Env();
+}
+
+function createFunction() {
+	return new FunctionDef();
 }
 
 function parseProgram(src) {
@@ -17,6 +23,8 @@ module.exports = {
     SyntaxError     : parser.SyntaxError,
 
     createEnv 		: createEnv,
+    createFunction	: createFunction,
+
     parseProgram    : parseProgram,
     parseFunction   : parseFunction
 };

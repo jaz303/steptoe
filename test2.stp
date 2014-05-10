@@ -1,0 +1,31 @@
+function drawSkyscraper(x, y) {
+
+  var col;
+  var row;
+
+  function drawWindow(col, row) {
+    save();
+    translate(x + 20 + col * 30, y + 20 + row * 40);
+    fill("yellow");
+    rectangle(0, 0, 20, 30);
+    restore();
+  }
+
+  fill("#a0a0a0");
+  rectangle(x, y, 120, 320);
+  col = 0;
+  while (col < 3) {
+    row = 0;
+    while (row < 7) {
+      drawWindow(col, row);
+      row = row + 1;
+    }
+    col = col + 1;
+  }
+
+}
+
+function main() {
+  drawSkyscraper(0, 0);
+}
+
